@@ -1,11 +1,20 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import { env } from './env.js';
+
+// Polyfill native WebSocket for environments where it's not built in.
+// Supabase realtime-js needs WebSocket even though we don't use realtime —
+// we pass it explicitly so it doesn't crash on Node < 22.
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = WebSocket;
+}
 
 export const supabase: SupabaseClient = createClient(
   env.supabaseUrl,
   env.supabaseServiceRoleKey,
   {
     auth: { persistSession: false, autoRefreshToken: false },
+    realtime: { transport: WebSocket as unknown as never },
     global: { headers: { 'x-application': 'atmolead-worker' } },
   },
 );
