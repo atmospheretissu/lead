@@ -62,11 +62,12 @@ const SELECTORS: { group: string; tone: ChipTone; icon: typeof Code2; specs: Sel
 ];
 
 const PRESETS = [
+  { label: 'Toutes les 15 min', value: '*/15 * * * *' },
+  { label: 'Toutes les 30 min', value: '*/30 * * * *' },
   { label: 'Chaque heure', value: '0 * * * *' },
   { label: 'Toutes les 6h', value: '0 */6 * * *' },
   { label: 'Toutes les 12h', value: '0 */12 * * *' },
   { label: 'Nuit (3h)', value: '0 3 * * *' },
-  { label: 'Lundi 9h', value: '0 9 * * 1' },
 ];
 
 export function ConfigForm({ config }: { config: Config | null }) {
