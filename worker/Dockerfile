@@ -1,5 +1,5 @@
 # Playwright base image — ships Chromium + system deps, no apt-get gymnastics
-FROM mcr.microsoft.com/playwright:v1.48.0-jammy
+FROM mcr.microsoft.com/playwright:v1.60.0-jammy
 
 WORKDIR /app
 

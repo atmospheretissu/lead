@@ -77,7 +77,10 @@ export async function runOnce(trigger: Trigger, jobId?: string): Promise<string 
       },
     ];
 
-    const status = skipped === 0 ? 'success' : inserted > 0 ? 'partial' : 'failed';
+    // No-error path: scraping itself succeeded. Skipped leads (duplicates,
+    // missing fields) are informational, not a failure. Only the catch branch
+    // below marks 'failed'.
+    const status = skipped > 0 && inserted > 0 ? 'partial' : 'success';
     await supabase
       .from('atmolead_executions')
       .update({
