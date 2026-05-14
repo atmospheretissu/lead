@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Play, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 export function TestNowButton() {
   const [pending, startTransition] = useTransition();
@@ -16,21 +18,25 @@ export function TestNowButton() {
         setMessage('Erreur — voir logs');
         return;
       }
-      setMessage('Job mis en file. Recharge dans quelques secondes.');
+      setMessage('Job en file…');
       setTimeout(() => router.refresh(), 3000);
     });
   }
 
   return (
     <div className="flex items-center gap-3">
-      {message && <span className="text-xs text-text-muted">{message}</span>}
-      <button
-        onClick={run}
-        disabled={pending}
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-      >
-        {pending ? 'Envoi…' : 'Tester maintenant'}
-      </button>
+      {message && <span className="text-[12px] text-muted">{message}</span>}
+      <Button variant="accent" onClick={run} disabled={pending}>
+        {pending ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Envoi…
+          </>
+        ) : (
+          <>
+            <Play className="h-3.5 w-3.5" /> Tester maintenant
+          </>
+        )}
+      </Button>
     </div>
   );
 }

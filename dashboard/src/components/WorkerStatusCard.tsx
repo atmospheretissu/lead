@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Activity, Clock, Inbox, Globe } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { ColorChip, StatusPill } from '@/components/ui/StatusPill';
 import { formatDate, formatDuration } from '@/lib/utils';
 import type { CronInfo } from '@/lib/cron';
 
@@ -42,8 +45,8 @@ export function WorkerStatusCard({
     const fetchStatus = () => {
       fetch('/api/worker-status', { cache: 'no-store' })
         .then((r) => r.json())
-        .then((data) => {
-          if (!cancelled) setStatus(data);
+        .then((d) => {
+          if (!cancelled) setStatus(d);
         })
         .catch(() => {
           if (!cancelled) setStatus({ healthy: false, error: 'fetch failed' });
@@ -60,96 +63,111 @@ export function WorkerStatusCard({
   const cronOK = cronInfo?.valid && config?.enabled;
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <div className="mb-4 flex items-center justify-between">
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between gap-4 px-5 py-4">
         <div className="flex items-center gap-3">
-          <Dot ok={status?.healthy ?? null} />
+          <ColorChip tone={status?.healthy ? 'emerald' : status?.healthy === false ? 'red' : 'amber'} size="md">
+            <Activity className="h-4 w-4" strokeWidth={2.2} />
+          </ColorChip>
           <div>
-            <div className="font-medium">
-              {status === null
-                ? 'Vérification du worker…'
-                : status.healthy
-                  ? 'Worker connecté'
-                  : 'Worker injoignable'}
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-semibold">
+                {status === null
+                  ? 'Vérification du worker…'
+                  : status.healthy
+                    ? 'Worker connecté'
+                    : 'Worker injoignable'}
+              </span>
+              {status?.healthy && (
+                <StatusPill tone="success" pulse>
+                  online
+                </StatusPill>
+              )}
+              {status && !status.healthy && (
+                <StatusPill tone="danger">offline</StatusPill>
+              )}
             </div>
-            <div className="text-xs text-text-muted">
+            <div className="mt-0.5 text-[11.5px] text-muted">
               {status?.healthy
-                ? `v${status.version ?? '?'} · ${status.latency ?? 0} ms`
-                : status?.error}
+                ? `version ${status.version ?? '?'} · latence ${status.latency ?? 0} ms`
+                : (status?.error ?? '—')}
             </div>
           </div>
         </div>
+
         <div className="flex items-center gap-3">
-          <Dot ok={config?.enabled ?? null} />
-          <div className="text-sm">
-            {config?.enabled ? (
-              <>
-                <div>Scraping actif</div>
-                <div className="text-xs text-text-muted">{cronInfo?.human ?? '—'}</div>
-              </>
-            ) : (
-              <div className="text-text-muted">Scraping désactivé</div>
-            )}
-          </div>
+          {config?.enabled ? (
+            <StatusPill tone="emerald" pulse>
+              Scraping actif
+            </StatusPill>
+          ) : (
+            <StatusPill tone="muted">Scraping désactivé</StatusPill>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <Stat
+      <div className="hairline" />
+
+      <div className="grid grid-cols-4 divide-x divide-line">
+        <StatBlock
+          tone="violet"
+          icon={Clock}
           label="Prochain run"
-          value={
-            cronOK && cronInfo?.nextRun
-              ? formatDate(cronInfo.nextRun)
-              : '—'
-          }
-          subtitle={cronOK ? cronInfo?.nextRunRelative ?? '' : 'scraping désactivé'}
+          value={cronOK && cronInfo?.nextRun ? formatDate(cronInfo.nextRun) : '—'}
+          subtitle={cronOK ? (cronInfo?.nextRunRelative ?? '') : 'scraping désactivé'}
         />
-        <Stat
+        <StatBlock
+          tone="emerald"
+          icon={Activity}
           label="Dernier succès"
           value={lastSuccess ? formatDate(lastSuccess.started_at) : 'jamais'}
           subtitle={
             lastSuccess
-              ? `${lastSuccess.leads_inserted} leads · ${formatDuration(lastSuccess.duration_ms)}`
+              ? `${lastSuccess.leads_inserted} insérés · ${formatDuration(lastSuccess.duration_ms)}`
               : ''
           }
         />
-        <Stat label="Leads ingérés (24h)" value={String(leadsLast24h)} tone="success" />
-        <Stat label="URL cible" value={config?.target_url ? hostnameOf(config.target_url) : '—'} small />
+        <StatBlock
+          tone="pink"
+          icon={Inbox}
+          label="Leads ingérés (24h)"
+          value={String(leadsLast24h)}
+        />
+        <StatBlock
+          tone="amber"
+          icon={Globe}
+          label="Source"
+          value={config?.target_url ? hostnameOf(config.target_url) : '—'}
+          subtitle={cronInfo?.human ?? '—'}
+        />
       </div>
-    </div>
+    </Card>
   );
 }
 
-function Dot({ ok }: { ok: boolean | null }) {
-  const color =
-    ok === null ? 'bg-text-muted/40' : ok ? 'bg-success' : 'bg-danger';
-  return <span className={`h-3 w-3 rounded-full ${color}`} aria-hidden />;
-}
-
-function Stat({
+function StatBlock({
+  tone,
+  icon: Icon,
   label,
   value,
   subtitle,
-  tone,
-  small,
 }: {
+  tone: 'violet' | 'emerald' | 'pink' | 'amber';
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   label: string;
   value: string;
   subtitle?: string;
-  tone?: 'success';
-  small?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface-2 p-3">
-      <div className="text-[10px] uppercase tracking-wide text-text-muted">{label}</div>
-      <div
-        className={`mt-1 font-semibold ${small ? 'text-sm' : 'text-base'} ${
-          tone === 'success' ? 'text-success' : ''
-        }`}
-      >
-        {value}
+    <div className="px-5 py-4">
+      <div className="flex items-center gap-2">
+        <ColorChip tone={tone} size="sm">
+          <Icon className="h-3 w-3" strokeWidth={2.2} />
+        </ColorChip>
+        <div className="eyebrow">{label}</div>
       </div>
-      {subtitle && <div className="mt-0.5 text-xs text-text-muted">{subtitle}</div>}
+      <div className="mt-2 text-[14px] font-medium text-ink">{value}</div>
+      {subtitle && <div className="mt-0.5 text-[11.5px] text-muted">{subtitle}</div>}
     </div>
   );
 }

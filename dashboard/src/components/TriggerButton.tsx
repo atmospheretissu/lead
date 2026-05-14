@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Play, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 export function TriggerButton() {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   function fire() {
     setMessage(null);
@@ -14,21 +18,28 @@ export function TriggerButton() {
         setMessage('Erreur — voir logs');
         return;
       }
-      setMessage('Job mis en file — sera ramassé par le worker');
-      setTimeout(() => window.location.reload(), 1500);
+      setMessage('Job mis en file…');
+      setTimeout(() => {
+        router.refresh();
+        setMessage(null);
+      }, 3000);
     });
   }
 
   return (
     <div className="flex items-center gap-3">
-      {message && <span className="text-xs text-text-muted">{message}</span>}
-      <button
-        onClick={fire}
-        disabled={pending}
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-      >
-        {pending ? 'Envoi…' : 'Déclencher un scrape'}
-      </button>
+      {message && <span className="text-[12px] text-muted">{message}</span>}
+      <Button variant="accent" onClick={fire} disabled={pending}>
+        {pending ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Envoi…
+          </>
+        ) : (
+          <>
+            <Play className="h-3.5 w-3.5" /> Déclencher un scrape
+          </>
+        )}
+      </Button>
     </div>
   );
 }

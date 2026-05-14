@@ -1,3 +1,6 @@
+import { CheckCircle2, MinusCircle } from 'lucide-react';
+import { StatusPill } from '@/components/ui/StatusPill';
+
 type RawLead = {
   id: string;
   external_ref: string | null;
@@ -6,28 +9,28 @@ type RawLead = {
   inserted: boolean;
   skip_reason: string | null;
   lm_lead_id: string | null;
-  client_id: string | null;
 };
 
 export function RawLeadsTable({ rows }: { rows: RawLead[] }) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-6 text-sm text-text-muted">
-        Aucun lead capturé.
+      <div className="rounded-lg border border-line bg-white px-4 py-3 text-[12.5px] text-muted">
+        Aucun lead capturé pour cette exécution.
       </div>
     );
   }
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-text-muted">
-          <tr>
-            <th className="px-4 py-2">Réf LM</th>
-            <th className="px-4 py-2">Nom</th>
-            <th className="px-4 py-2">Magasin / Produit</th>
-            <th className="px-4 py-2">Montant</th>
-            <th className="px-4 py-2">Statut</th>
-            <th className="px-4 py-2">Disposition</th>
+    <div className="overflow-hidden rounded-xl border border-line bg-white">
+      <table className="w-full text-[13px]">
+        <thead className="border-b border-line bg-canvas-2/50">
+          <tr className="text-left">
+            <th className="px-4 py-2 eyebrow w-8"></th>
+            <th className="px-4 py-2 eyebrow">Réf LM</th>
+            <th className="px-4 py-2 eyebrow">Client</th>
+            <th className="px-4 py-2 eyebrow">Magasin · Localisation</th>
+            <th className="px-4 py-2 eyebrow text-right">Montant</th>
+            <th className="px-4 py-2 eyebrow">Statut LM</th>
+            <th className="px-4 py-2 eyebrow">Issue</th>
           </tr>
         </thead>
         <tbody>
@@ -38,30 +41,45 @@ export function RawLeadsTable({ rows }: { rows: RawLead[] }) {
               product?: string;
               location?: string;
               amount?: string;
-              detail?: { storeName?: string };
+              detail?: { storeName?: string; customerEmail?: string };
             };
             return (
-              <tr key={r.id} className="border-t border-border">
-                <td className="px-4 py-2 font-mono text-xs">{r.external_ref ?? '—'}</td>
-                <td className="px-4 py-2">{d.name ?? '—'}</td>
-                <td className="px-4 py-2">
-                  <div>{d.detail?.storeName ?? d.location ?? '—'}</div>
-                  <div className="text-xs text-text-muted">{d.product ?? ''}</div>
-                </td>
-                <td className="px-4 py-2 font-mono text-xs">{d.amount ?? '—'}</td>
-                <td className="px-4 py-2 text-text-muted">{d.status ?? ''}</td>
-                <td className="px-4 py-2">
+              <tr key={r.id} className="border-b border-line/60 last:border-0 hover:bg-canvas-2/30">
+                <td className="px-4 py-2.5 align-top">
                   {r.inserted ? (
-                    <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs text-success">
-                      inséré
-                    </span>
+                    <CheckCircle2 className="h-4 w-4 text-emerald" strokeWidth={2.3} />
                   ) : (
-                    <span
-                      className="rounded-full bg-warn/15 px-2 py-0.5 text-xs text-warn"
-                      title={r.skip_reason ?? undefined}
-                    >
-                      {r.skip_reason ?? 'ignoré'}
-                    </span>
+                    <MinusCircle className="h-4 w-4 text-muted-2" strokeWidth={2.3} />
+                  )}
+                </td>
+                <td className="px-4 py-2.5 align-top">
+                  <span className="font-mono text-[11.5px] text-muted">{r.external_ref ?? '—'}</span>
+                </td>
+                <td className="px-4 py-2.5 align-top">
+                  <div className="font-medium text-ink">{d.name ?? '—'}</div>
+                  {d.detail?.customerEmail && (
+                    <div className="mt-0.5 text-[11.5px] text-muted">{d.detail.customerEmail}</div>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 align-top">
+                  <div className="text-[12.5px] text-ink-2">{d.detail?.storeName ?? '—'}</div>
+                  <div className="mt-0.5 text-[11px] text-muted">{d.location ?? ''}</div>
+                </td>
+                <td className="px-4 py-2.5 align-top text-right">
+                  <span className="font-mono text-[12px] text-ink-2">{d.amount ?? '—'}</span>
+                </td>
+                <td className="px-4 py-2.5 align-top">
+                  <span className="text-[12.5px] text-muted">{d.status ?? '—'}</span>
+                </td>
+                <td className="px-4 py-2.5 align-top">
+                  {r.inserted ? (
+                    <StatusPill tone="success" dot={false}>
+                      Inséré
+                    </StatusPill>
+                  ) : (
+                    <StatusPill tone="muted" dot={false}>
+                      {r.skip_reason ?? 'Ignoré'}
+                    </StatusPill>
                   )}
                 </td>
               </tr>
