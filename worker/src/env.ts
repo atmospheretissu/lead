@@ -18,4 +18,9 @@ export const env = {
   jobPollIntervalMs: Number(process.env.JOB_POLL_INTERVAL_MS ?? 15_000),
   debugTrace: process.env.DEBUG_TRACE === 'true',
   workerVersion: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
+  // Webhook Atmo notifié instantanément après chaque lead inséré
+  atmoWebhookUrl:
+    process.env.ATMO_WEBHOOK_URL ??
+    'https://atmo-production.up.railway.app/api/webhooks/lm-lead-created',
+  atmoWebhookSecret: process.env.ATMO_WEBHOOK_SECRET,
 };

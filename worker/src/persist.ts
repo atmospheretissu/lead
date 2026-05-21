@@ -1,6 +1,52 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { env } from './env.js';
 import type { ScrapedLead } from './scraper.js';
+
+/**
+ * Notifie Atmo qu'un lead vient d'être inséré → déclenche SMS/email/alertes
+ * configurés dans /architecture côté Atmo. Fire-and-forget (timeout 3s) :
+ *   - succès → SMS partent dans la seconde
+ *   - erreur → le poller côté Atmo reprendra le lead (idempotent via alerts_sent_at)
+ */
+async function notifyAtmo(leadId: string): Promise<void> {
+  if (!env.atmoWebhookUrl) return;
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 3000);
+  try {
+    const res = await fetch(env.atmoWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(env.atmoWebhookSecret ? { 'x-webhook-secret': env.atmoWebhookSecret } : {}),
+      },
+      body: JSON.stringify({ lead_id: leadId }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      logger.warn({ status: res.status, body: text.slice(0, 200), leadId }, 'atmo webhook returned non-ok');
+    } else {
+      const data = (await res.json().catch(() => null)) as
+        | { sms?: { ok?: boolean }; email?: { ok?: boolean }; alerts_matched?: number; alerts_sent?: { sms: number; email: number } }
+        | null;
+      logger.info(
+        {
+          leadId,
+          sms_ok: data?.sms?.ok,
+          email_ok: data?.email?.ok,
+          alerts_matched: data?.alerts_matched,
+          alerts_sent: data?.alerts_sent,
+        },
+        'atmo notified',
+      );
+    }
+  } catch (err) {
+    logger.warn({ err: (err as Error).message, leadId }, 'atmo webhook call failed');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 type PersistOutcome = {
   inserted: number;
@@ -137,6 +183,11 @@ export async function persistLeads(
       lm_lead_id: lmLead.id,
       inserted: true,
     });
+
+    // Notify Atmo instantanément — déclenche SMS/email/alertes.
+    // fire-and-forget : on n'attend pas la réponse pour ne pas ralentir le scrape.
+    void notifyAtmo(lmLead.id);
+
     inserted++;
   }
 
