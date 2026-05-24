@@ -2,31 +2,51 @@ import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import { ExecutionsList } from '@/components/ExecutionsList';
 import { Card } from '@/components/ui/Card';
 import { ColorChip } from '@/components/ui/StatusPill';
+import { Pagination } from '@/components/ui/Pagination';
 import { Activity, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ExecutionsPage() {
+const PAGE_SIZE = 20;
+
+export default async function ExecutionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const page = Math.max(1, Number(params.page ?? 1) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+
   const supabase = getSupabaseAdminClient();
   const yesterday = new Date(Date.now() - 24 * 3_600_000).toISOString();
 
-  const [{ data: executions }, { count: success24h }, { count: failed24h }, { count: total }] = await Promise.all([
+  const [
+    { data: executions, count: total },
+    { count: success24h },
+    { count: failed24h },
+    { count: partial24h },
+  ] = await Promise.all([
     supabase
       .from('atmolead_executions')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('started_at', { ascending: false })
-      .limit(100),
+      .range(offset, offset + PAGE_SIZE - 1),
     supabase
       .from('atmolead_executions')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['success', 'partial'])
+      .eq('status', 'success')
       .gte('started_at', yesterday),
     supabase
       .from('atmolead_executions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'failed')
       .gte('started_at', yesterday),
-    supabase.from('atmolead_executions').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('atmolead_executions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'partial')
+      .gte('started_at', yesterday),
   ]);
 
   return (
@@ -43,11 +63,18 @@ export default async function ExecutionsPage() {
         <Kpi tone="violet" icon={Activity} label="Total" value={String(total ?? 0)} />
         <Kpi tone="emerald" icon={CheckCircle2} label="Réussies (24h)" value={String(success24h ?? 0)} />
         <Kpi tone="red" icon={XCircle} label="Échouées (24h)" value={String(failed24h ?? 0)} />
-        <Kpi tone="orange" icon={AlertTriangle} label="Partielles (24h)" value="—" hide />
+        <Kpi tone="orange" icon={AlertTriangle} label="Partielles (24h)" value={String(partial24h ?? 0)} />
       </section>
 
       <Card className="overflow-hidden">
         <ExecutionsList executions={executions ?? []} />
+        <Pagination
+          basePath="/executions"
+          currentPage={page}
+          totalCount={total ?? 0}
+          pageSize={PAGE_SIZE}
+          itemNoun="exécutions"
+        />
       </Card>
     </div>
   );
@@ -58,15 +85,12 @@ function Kpi({
   icon: Icon,
   label,
   value,
-  hide,
 }: {
   tone: 'violet' | 'emerald' | 'red' | 'orange';
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   label: string;
   value: string;
-  hide?: boolean;
 }) {
-  if (hide) return <div className="hidden" />;
   return (
     <Card className="px-5 py-4">
       <div className="flex items-start justify-between">

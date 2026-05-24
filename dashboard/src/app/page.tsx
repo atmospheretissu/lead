@@ -3,9 +3,12 @@ import { formatDate } from '@/lib/utils';
 import { TriggerButton } from '@/components/TriggerButton';
 import { StatusPill, ColorChip, type StatusTone } from '@/components/ui/StatusPill';
 import { Card } from '@/components/ui/Card';
+import { Pagination } from '@/components/ui/Pagination';
 import { MapPin, Mail, Phone, Tag } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+const PAGE_SIZE = 25;
 
 const statusTone: Record<string, StatusTone> = {
   nouveau: 'blue',
@@ -25,35 +28,51 @@ const statusLabel: Record<string, string> = {
   perdu: 'Perdu',
 };
 
-export default async function LeadsPage() {
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const page = Math.max(1, Number(params.page ?? 1) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+
   const supabase = getSupabaseAdminClient();
   const yesterday = new Date(Date.now() - 24 * 3_600_000).toISOString();
 
-  const [{ data: leads }, { data: lastExec }, { count: totalCount }, { count: newCount }, { count: amount24h }] =
-    await Promise.all([
-      supabase
-        .from('lm_leads')
-        .select('id, number, region, product_summary, status, amount, created_at, clients(display_name, email, phone, city, postal_code)')
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('atmolead_executions')
-        .select('id, status, started_at, leads_inserted, duration_ms')
-        .order('started_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase.from('lm_leads').select('*', { count: 'exact', head: true }),
-      supabase
-        .from('lm_leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'nouveau'),
-      supabase
-        .from('lm_leads')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', yesterday),
-    ]);
+  const [
+    { data: leads, count: totalCount },
+    { data: lastExec },
+    { count: newCount },
+    { count: amount24h },
+    { data: amountAll },
+  ] = await Promise.all([
+    supabase
+      .from('lm_leads')
+      .select(
+        'id, number, region, product_summary, status, amount, created_at, clients(display_name, email, phone, city, postal_code)',
+        { count: 'exact' },
+      )
+      .order('created_at', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1),
+    supabase
+      .from('atmolead_executions')
+      .select('id, status, started_at, leads_inserted, duration_ms')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('lm_leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'nouveau'),
+    supabase
+      .from('lm_leads')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', yesterday),
+    supabase.from('lm_leads').select('amount'),
+  ]);
 
-  const totalAmount = (leads ?? []).reduce((sum, l) => sum + (l.amount ?? 0), 0);
+  const totalAmount = (amountAll ?? []).reduce((sum, l) => sum + (l.amount ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -91,7 +110,7 @@ export default async function LeadsPage() {
         <div className="flex items-center justify-between px-5 py-3.5">
           <div>
             <div className="text-[13.5px] font-semibold">Tous les leads</div>
-            <div className="text-[11.5px] text-muted">50 derniers — triés par date d&apos;arrivée</div>
+            <div className="text-[11.5px] text-muted">Triés par date d&apos;arrivée — {PAGE_SIZE} par page</div>
           </div>
         </div>
         <div className="hairline" />
@@ -182,6 +201,13 @@ export default async function LeadsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          basePath="/"
+          currentPage={page}
+          totalCount={totalCount ?? 0}
+          pageSize={PAGE_SIZE}
+          itemNoun="leads"
+        />
       </Card>
     </div>
   );
